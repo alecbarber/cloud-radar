@@ -532,6 +532,52 @@ class Template:
             t_params[p_name]["Value"] = p_value["Default"]
 
 
+def parse_parameter_value(
+    parameter_name: str, parameter_definition: dict, parameter_value: str
+) -> object:
+    """
+    Parse the parameter value based on the parameter definition
+    Args:
+        parameter_name (str): The name of the parameter being parsed
+        parameter_definition (Dict): The parameter definition being parsed
+                                    against
+        parameter_value (str): The supplied parameter value being parsed
+    Returns:
+        object: The parsed parameter value
+    """
+
+    if "Type" not in parameter_definition:
+        return parameter_value
+    if parameter_definition["Type"] == "String":
+        return parameter_value
+    elif parameter_definition["Type"] == "CommaDelimitedList":
+        return parameter_value.split(",")
+    elif parameter_definition["Type"] == "Number":
+        return int(parameter_value)
+    elif parameter_definition["Type"].startswith("AWS::"):
+        return parameter_value
+    elif parameter_definition["Type"].startswith("List<"):
+        # All list types runs the single value validation for all items
+        trimmed_type = parameter_definition["Type"][5:-1]
+
+        # There are a couple though that are not supported
+        if trimmed_type == "AWS::EC2::KeyPair::KeyName" or trimmed_type == "String":
+            # this is a type that isn't valid as a list, but is
+            # as a single item
+            raise ValueError(f"Type {trimmed_type} is not valid in a List<>")
+
+        # Iterate over each item and call this method again with an
+        # updated definition for the non-list type
+        updated_definition = parameter_definition.copy()
+        updated_definition["Type"] = trimmed_type
+
+        return [
+            parse_parameter_value(parameter_name, updated_definition, part.strip())
+            for part in parameter_value.split(",")
+        ]
+    return parameter_value
+
+
 def validate_parameter_constraints(
     parameter_name: str, parameter_definition: dict, parameter_value: str
 ):

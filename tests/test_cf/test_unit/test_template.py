@@ -4,7 +4,7 @@ from unittest.mock import mock_open, patch
 import pytest
 
 from cloud_radar.cf.unit import functions
-from cloud_radar.cf.unit._template import Template, add_metadata
+from cloud_radar.cf.unit._template import Template, add_metadata, parse_parameter_value
 
 
 @pytest.fixture
@@ -836,3 +836,30 @@ def test_unknown_dynamic_references():
         ),
     ):
         template.render()
+
+
+@pytest.mark.parametrize(
+    "typ,valid_input,expected",
+    [
+        ("String", "test", "test"),
+        ("CommaDelimitedList", "test1,test2", ["test1", "test2"]),
+        ("Number", "123", 123),
+        ("AWS::EC2::Instance", "i-1234567890abcdef0", "i-1234567890abcdef0"),
+        ("List<Number>", "123,456", [123, 456]),
+        ("Unknown", "test", "test"),
+    ],
+)
+def test_parse_params(typ: str, valid_input: str, expected: object):
+    t = {
+        "Parameters": {
+            "TestParam": {
+                "Type": typ,
+            }
+        }
+    }
+
+    result = parse_parameter_value(
+        "TestParam", t["Parameters"]["TestParam"], valid_input
+    )
+
+    assert result == expected

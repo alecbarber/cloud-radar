@@ -687,7 +687,7 @@ def sub_s(template: "Template", value: str) -> str:
         str: Input String with variables substituted.
     """
 
-    def replace_var(m):
+    def replace_var(m: "re.Match[str]") -> str:
         var = m.group(1)
 
         if "." in var:
@@ -701,7 +701,7 @@ def sub_s(template: "Template", value: str) -> str:
         else:
             result = ref(template, var)
 
-        return result
+        return _string_for_sub(result)
 
     reVar = r"(?!\$\{\!)\$\{(\w+[^}]*)\}"
 
@@ -745,11 +745,11 @@ def sub_l(template: "Template", values: List) -> str:
             "Fn::Sub - The first value must be a String and the second a Map."
         )
 
-    def replace_var(m):
+    def replace_var(m: "re.Match[str]") -> str:
         var: str = m.group(1)
 
         if var in local_vars:
-            return local_vars[var]
+            return _string_for_sub(local_vars[var])
 
         if "." in var:
             parts = var.split(".")
@@ -762,7 +762,7 @@ def sub_l(template: "Template", values: List) -> str:
         else:
             result = ref(template, var)
 
-        return result
+        return _string_for_sub(result)
 
     reVar = r"(?!\$\{\!)\$\{(\w+[^}]*)\}"
 
@@ -770,6 +770,19 @@ def sub_l(template: "Template", values: List) -> str:
         return re.sub(reVar, replace_var, source_string).replace("${!", "${")
 
     return source_string.replace("${!", "${")
+
+
+def _string_for_sub(v: object) -> str:
+    if isinstance(v, str):
+        return v
+    elif isinstance(
+        v, bool
+    ):  # must come before int check, because bools are instances of int!
+        return str(v).lower()
+    elif isinstance(v, int):
+        return str(v)
+    else:
+        return str(v)
 
 
 def transform(_t: "Template", values: Any) -> str:
@@ -814,6 +827,8 @@ def ref(template: "Template", var_name: str) -> Any:
         Any: The value of the parameter, resource or pseudo variable.
     """
 
+    from cloud_radar.cf.unit._template import parse_parameter_value
+
     if "AWS::" in var_name:
         pseudo = var_name.replace("AWS::", "")
 
@@ -840,7 +855,11 @@ def ref(template: "Template", var_name: str) -> Any:
                 )
 
             # If we get this far, regular parameter value to lookup & return
-            return template.template["Parameters"][var_name]["Value"]
+            return parse_parameter_value(
+                var_name,
+                param_def,
+                template.template["Parameters"][var_name]["Value"],
+            )
 
     if var_name in template.template["Resources"]:
         return var_name

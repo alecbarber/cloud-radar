@@ -559,13 +559,22 @@ def test_sub(mocker):
 
 
 def test_sub_s():
-    template_dict = {"Parameters": {"Foo": {"Value": "bar"}}}
+    template_dict = {
+        "Parameters": {
+            "Foo": {"Value": "bar"},
+            "number": {"Type": "Number", "Value": "1000"},
+        }
+    }
 
     template = Template(template_dict)
 
     result = functions.sub_s(template, "Foo ${Foo}")
 
     assert result == "Foo bar", "Should subsuite a parameter."
+
+    result = functions.sub_s(template, "number ${number}")
+
+    assert result == "number 1000", "Should subsuite a numeric parameter."
 
     result = functions.sub_s(template, "not ${!Test}")
 
@@ -581,7 +590,12 @@ def test_sub_s():
 
 
 def test_sub_l():
-    template_dict = {"Parameters": {"Foo": {"Value": "bar"}}}
+    template_dict = {
+        "Parameters": {
+            "Foo": {"Value": "bar"},
+            "number": {"Type": "Number", "Value": "1000"},
+        }
+    }
 
     add_metadata(template_dict, "us-east-1")
 
@@ -597,9 +611,9 @@ def test_sub_l():
 
     assert "String and the second a Map." in str(e)
 
-    var_map = {"LocalA": "TestA"}
+    var_map = {"LocalA": "TestA", "LocalBool": False}
 
-    input_string = "${AWS::Region} ${Foo} ${!BASH_VAR} ${LocalA}"
+    input_string = "${AWS::Region} ${Foo} ${number} ${!BASH_VAR} ${LocalA} ${LocalBool}"
 
     result = functions.sub_l(template, [input_string, var_map])
 
@@ -607,9 +621,13 @@ def test_sub_l():
 
     assert "bar" in result, "Should render parameters."
 
+    assert "1000" in result, "Should render numeric parameters."
+
     assert "${BASH_VAR}" in result, "Should allow escaping variables."
 
     assert "TestA" in result, "Should render local variables."
+
+    assert "false" in result, "Should render local boolean variables."
 
     test_string = "SomeString"
 
@@ -637,7 +655,14 @@ def test_transform(fake_t):
 
 
 def test_ref():
-    template = {"Parameters": {"foo": {"Value": "bar"}}, "Resources": {}}
+    template = {
+        "Parameters": {
+            "foo": {"Value": "bar"},
+            "stringlist": {"Type": "CommaDelimitedList", "Value": "HELLO,WORLD"},
+            "number": {"Type": "Number", "Value": "1000"},
+        },
+        "Resources": {},
+    }
 
     add_metadata(template, Template.Region)
 
@@ -654,6 +679,14 @@ def test_ref():
     result = functions.ref(template, "foo")
 
     assert result == "bar", "Should reference parameters."
+
+    result = functions.ref(template, "stringlist")
+
+    assert result == ["HELLO", "WORLD"], "Should parse parameters."
+
+    result = functions.ref(template, "number")
+
+    assert result == 1000, "Should parse parameters."
 
     with pytest.raises(Exception) as ex:
         result = functions.ref(template, "SomeResource")
