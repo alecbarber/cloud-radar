@@ -157,7 +157,7 @@ class Template:
 
         self.template = self.render_all_sections(self.template)
 
-        self.template = self.remove_condtional_resources(self.template)
+        self.template = self.remove_conditional_resources(self.template)
 
         return self.template
 
@@ -284,7 +284,7 @@ class Template:
 
         return template
 
-    def remove_condtional_resources(self, template: Dict[str, Any]) -> Dict[str, Any]:
+    def remove_conditional_resources(self, template: Dict[str, Any]) -> Dict[str, Any]:
         """Removes all resources that have a condition that evaluates to False."""
 
         # These are sections that can have conditional resources
